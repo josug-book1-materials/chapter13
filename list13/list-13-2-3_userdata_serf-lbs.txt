@@ -1,0 +1,16 @@
+#!/bin/bash
+cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
+cat << EOF > /etc/yum.repos.d/nginx.repo
+[nginx]
+name=nginx repo
+baseurl=http://nginx.org/packages/centos/\$releasever/\$basearch/
+gpgcheck=0
+enabled=1
+EOF
+yum install -q -y nginx git
+chkconfig nginx on
+/etc/init.d/nginx start
+
+git clone -q https://github.com/josug-book1-materials/chapter13.git
+cd chapter13/install_chap13 && sh install_serf.sh
+echo "##### Userdata script completed #####"

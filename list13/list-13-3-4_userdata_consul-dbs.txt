@@ -1,0 +1,50 @@
+#!/bin/bash
+cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
+cd /root
+git clone -q https://github.com/josug-book1-materials/sample-app.git
+cd sample-app
+git checkout -b v1.0 remotes/origin/v1.0
+sh /root/sample-app/server-setup/install_db.sh
+service mysqld stop
+echo "LABEL=mysql_data /var/lib/mysql ext4 defaults,noatime 0 2" >> /etc/fstab
+mount /var/lib/mysql/
+service mysqld start
+
+# Consul エージェントのセットアップ
+yum install -y -q git jq
+git clone -q https://github.com/josug-book1-materials/chapter13.git
+cd chapter13/install_chap13 && sh install_consul.sh
+mkdir -p /opt/consul/conf
+cat << EOF > /opt/consul/conf/mysql.json
+{
+    "service": {
+        "name": "mysql",
+        "port": 3306,
+        "check": {
+            "script": "/usr/bin/mysqladmin -h 127.0.0.1 ping > /dev/null 2>&1",
+            "interval": "10s"
+        }
+    }
+}
+EOF
+
+# IP アドレス取得とエージェントの起動
+yum install -y python-pip
+pip install python-novaclient
+cat << EOF > /root/openrc
+
+# 以下を自分の環境に合わせて値を変えてください。
+export OS_AUTH_URL=http://192.168.100.10:5000/v2.0/
+export OS_REGION_NAME=RegionOne
+export OS_TENANT_NAME=SNSApp
+export OS_USERNAME=snsapp-infra-user
+export OS_PASSWORD=passw0rd
+EOF
+source /root/openrc
+function get_uuid () { cat - | grep " id " | awk '{print $4}'; }
+export CONSUL_SERVER=`curl -s http://169.254.169.254/openstack/latest/meta_data.json | \
+    jq -r '.meta["CONSUL_SERVER"]'`
+
+/usr/local/bin/consul agent -dc=openstack -data-dir=/opt/consul/dat/ \
+    -config-dir=/opt/consul/conf/ -join=${CONSUL_SERVER} &
+echo "##### Userdata script completed #####"

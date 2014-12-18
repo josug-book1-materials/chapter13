@@ -1,0 +1,27 @@
+#!/bin/bash
+cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
+cd /root
+git clone -q https://github.com/josug-book1-materials/sample-app.git
+cd sample-app
+git checkout -b v1.0 remotes/origin/v1.0
+sh /root/sample-app/server-setup/install_web.sh
+
+# webapp setup
+yum install -y git jq
+export APP=`curl -s http://169.254.169.254/openstack/latest/meta_data.json | \
+    jq -r '.meta["APP"]'`
+cat << EOF > /root/sample-app/endpoint.conf
+[rest-server]
+rest_host = ${APP}
+rest_endpoint = http://%(rest_host)s:5555/bbs
+EOF
+sh /root/sample-app/server-setup/web.init.sh start
+
+# Serf setup
+git clone -q https://github.com/josug-book1-materials/chapter13.git
+cd chapter13/install_chap13 && sh install_serf.sh
+export LBS=`curl -s http://169.254.169.254/openstack/latest/meta_data.json | \
+    jq -r '.meta["LBS"]'`
+/usr/local/bin/serf agent -join=${LBS} -tag role=web &
+echo "##### Userdata script completed #####"
+

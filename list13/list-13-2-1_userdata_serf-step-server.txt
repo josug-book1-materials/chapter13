@@ -1,0 +1,18 @@
+#!/bin/bash
+cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
+git clone -q https://github.com/josug-book1-materials/install_cli.git
+cd install_cli && sh install.sh
+cat << EOF > /root/openrc
+# 以下を自分の環境に合わせて値を変えてください。
+export OS_AUTH_URL=http://192.168.100.10:5000/v2.0/
+export OS_REGION_NAME=RegionOne
+export OS_TENANT_NAME=SNSApp
+export OS_USERNAME=snsapp-infra-user
+export OS_PASSWORD=passw0rd
+EOF
+
+yum install -q -y git jq
+cd /tmp
+git clone -q https://github.com/josug-book1-materials/chapter13.git
+cd chapter13/install_chap13 && sh install_serf.sh
+echo "##### Userdata script completed #####"
